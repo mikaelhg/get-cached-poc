@@ -1,0 +1,12 @@
+server:
+  error:
+    whitelabel:
+      enabled: false
+
+spring:
+  application:
+    name: get-cache-poc
+
+logging:
+  level:
+    io.mikael: DEBUG
