@@ -3,11 +3,9 @@ package io.mikael.poc;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import org.aspectj.lang.JoinPoint;
@@ -29,16 +27,7 @@ public class RateLimitAspect {
 
 	private static final Logger logger = LoggerFactory.getLogger(RateLimitAspect.class);
 
-	private static final CacheLoader<Long, SingleJoinPointExecutor> LOADER = new CacheLoader<Long, SingleJoinPointExecutor>() {
-		@Override
-		public SingleJoinPointExecutor load(final Long key) {
-			return new SingleJoinPointExecutor();
-		}
-	};
-
-	private final LoadingCache<Long, SingleJoinPointExecutor> cache = CacheBuilder.newBuilder()
-			.expireAfterWrite(5, TimeUnit.MINUTES)
-			.build(LOADER);
+	private final ConcurrentMap<Long, SingleJoinPointExecutor> executors = new ConcurrentHashMap<>();
 
 	@Pointcut("execution(public * io.mikael.poc.*.*(..))")
 	private void anyPublicOperation() {}
@@ -47,12 +36,11 @@ public class RateLimitAspect {
 	public void rateLimited() {}
 
 	@Around("anyPublicOperation() && rateLimited()")
-	public Object aroundRateLimited(final ProceedingJoinPoint pjp)
-			throws Throwable
-	{
+	public Object aroundRateLimited(final ProceedingJoinPoint pjp) {
 		final Long hash = hashJoinPoint(pjp);
-		final SingleJoinPointExecutor executor = cache.get(hash);
-		return executor.run(pjp);
+		final SingleJoinPointExecutor executor = executors.computeIfAbsent(hash,
+				k -> new SingleJoinPointExecutor());
+		return executor.run(pjp, p -> executors.remove(hash, executor));
 	}
 
 	public long hashJoinPoint(final JoinPoint joinPoint) {

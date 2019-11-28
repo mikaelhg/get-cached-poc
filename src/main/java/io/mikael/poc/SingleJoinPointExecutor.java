@@ -2,6 +2,7 @@ package io.mikael.poc;
 
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.slf4j.Logger;
@@ -25,7 +26,9 @@ public class SingleJoinPointExecutor {
 
 	private volatile Throwable throwable;
 
-	public Object run(final ProceedingJoinPoint pjp) {
+	public Object run(final ProceedingJoinPoint pjp,
+			final Consumer<ProceedingJoinPoint> afterWrite)
+	{
 		if (lock.writeLock().tryLock()) {
 			try {
 				try {
@@ -37,6 +40,7 @@ public class SingleJoinPointExecutor {
 				}
 			} finally {
 				lock.writeLock().unlock();
+				afterWrite.accept(pjp);
 			}
 		} else {
 			lock.readLock().lock();
