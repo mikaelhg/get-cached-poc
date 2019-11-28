@@ -26,6 +26,11 @@ public class SingleJoinPointExecutor {
 
 	private volatile Throwable throwable;
 
+	/**
+	 * First caller executes the joinpoint, others will wait for those results.
+	 *
+	 * @param afterWrite an event handler for removing the executor from a cache
+	 */
 	public Object run(final ProceedingJoinPoint pjp,
 			final Consumer<ProceedingJoinPoint> afterWrite)
 	{
